@@ -3,7 +3,7 @@
 
 trigger:
   branches:
-    include: [main]
+    include: [dev]
   paths:
     include:
       - workspace/*
@@ -13,7 +13,7 @@ trigger:
 
 pr:
   branches:
-    include: [main]
+    include: [dev]
 
 pool:
   vmImage: ubuntu-latest
@@ -43,7 +43,7 @@ stages:
     variables:
       - group: fabric-test          # defines WORKSPACE_ID
     jobs:
-      - template: pipelines/templates/deploy.yml
+      - template: ./templates/deploy.yml
         parameters:
           environment: TEST
           adoEnvironment: fabric-test
@@ -57,7 +57,7 @@ stages:
     variables:
       - group: fabric-prod          # defines WORKSPACE_ID
     jobs:
-      - template: pipelines/templates/deploy.yml
+      - template: ./templates/deploy.yml
         parameters:
           environment: PROD
           adoEnvironment: fabric-prod   # add Approvals and checks on this Environment
