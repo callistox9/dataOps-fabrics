@@ -1,13 +1,13 @@
-parameters:
-  - name: environment
+parameters:                        ## List of parameters for the pipeline
+  - name: environment              
     type: string
   - name: adoEnvironment
     type: string
   - name: serviceConnection
     type: string
-  - name: provenance          # ancestor-of-dev | tested-tag
+  - name: provenance          
     type: string
-  - name: tagPrefix           # tested | released
+  - name: tagPrefix              ## Prefix for the tag to be created after a successful deployment
     type: string
   - name: unpublishOrphans
     type: boolean

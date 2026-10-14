@@ -1,16 +1,21 @@
-"""Repo policy checks that run on every PR. Exit non-zero on violations."""
+"""Repo policy checks that run on every PR. 
+   When the Policy check fails, the script exits with a non-zero value."""
+
 import pathlib
 import re
 import sys
-
 import yaml
 
+#Declared global variables for the repo structure and required envs. These are used in the functions below.
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 WORKSPACE = ROOT / "workspace"
 PARAM = WORKSPACE / "parameter.yml"
 REQUIRED_ENVS = {"TEST", "PROD"}
 
-# Baseline only. Add a dedicated scanner (gitleaks, trufflehog) for real coverage.
+
+ 
+#  We will add git leaks later or maybe trivy 
+
 SECRET_PATTERNS = [
     r"client_secret\s*[=:]\s*\S+",
     r"AccountKey=[A-Za-z0-9+/=]{20,}",
@@ -19,7 +24,7 @@ SECRET_PATTERNS = [
 ]
 TEXT_SUFFIXES = {".py", ".json", ".yml", ".yaml", ".sql", ".txt", ".md", ".ipynb", ".platform"}
 
-errors: list[str] = []
+errors: list[str] = [] ## list stores all the errors
 
 
 def check_parameter_file() -> None:

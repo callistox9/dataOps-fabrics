@@ -1,7 +1,5 @@
 """Deploy Fabric item definitions from the repo to a workspace using fabric-cicd.
 
-Auth: AzureCliCredential. Run inside the AzureCLI@2 task so the service
-connection's identity is already logged in. No secrets are stored in the repo.
 """
 import argparse
 
@@ -13,8 +11,8 @@ from fabric_cicd import (
     unpublish_all_orphan_items,
 )
 
-# Trim to the item types your team uses. Check the fabric-cicd docs for the
-# currently supported list before adding more.
+#These are items types that are used in workspace in fabric. There are more, but these are most basic ones
+# and are supported by fbric-cicd api docs.
 DEFAULT_ITEM_TYPES = ["Notebook", "DataPipeline", "Environment", "VariableLibrary"]
 
 

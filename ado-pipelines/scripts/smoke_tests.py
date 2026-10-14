@@ -1,4 +1,4 @@
-"""Post-deploy smoke test: every item defined in the repo exists in the target workspace."""
+"""Post-deploy smoke test to check whether every item defined in the repo exists in the target/Prod/test/..etc workspace."""
 import argparse
 import json
 import pathlib
