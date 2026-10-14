@@ -1,0 +1,74 @@
+parameters:
+  - name: environment
+    type: string
+  - name: adoEnvironment
+    type: string
+  - name: serviceConnection
+    type: string
+  - name: provenance          # ancestor-of-dev | tested-tag
+    type: string
+  - name: tagPrefix           # tested | released
+    type: string
+  - name: unpublishOrphans
+    type: boolean
+    default: false
+
+jobs:
+  - deployment: deploy_${{ lower(parameters.environment) }}
+    displayName: Deploy ${{ parameters.environment }}
+    environment: ${{ parameters.adoEnvironment }}
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+            - checkout: self
+              fetchDepth: 0
+              persistCredentials: true
+
+            - bash: |
+                set -euo pipefail
+                git fetch origin --tags --prune
+                SHA=$(git rev-parse HEAD)
+                if [ "${{ parameters.provenance }}" = "ancestor-of-dev" ]; then
+                  git merge-base --is-ancestor "$SHA" origin/dev || {
+                    echo "##vso[task.logissue type=error]$SHA is not on dev. Promote from dev only."; exit 1; }
+                else
+                  git tag --points-at "$SHA" | grep -q '^tested-' || {
+                    echo "##vso[task.logissue type=error]$SHA has no tested- tag. It has not passed Test."; exit 1; }
+                fi
+                echo "Provenance OK for $SHA"
+              displayName: Provenance check
+
+            - task: UsePythonVersion@0
+              inputs:
+                versionSpec: '3.12'
+            - script: pip install -r requirements.txt
+              displayName: Install dependencies
+
+            - task: AzureCLI@2
+              displayName: Publish items to ${{ parameters.environment }}
+              inputs:
+                azureSubscription: ${{ parameters.serviceConnection }}
+                scriptType: bash
+                scriptLocation: inlineScript
+                inlineScript: |
+                  python scripts/deploy.py \
+                    --workspace-id "$(WORKSPACE_ID)" \
+                    --environment "${{ parameters.environment }}" \
+                    --repo-dir workspace ${{ iif(parameters.unpublishOrphans, '--unpublish-orphans', '') }}
+
+            - task: AzureCLI@2
+              displayName: Smoke test
+              inputs:
+                azureSubscription: ${{ parameters.serviceConnection }}
+                scriptType: bash
+                scriptLocation: inlineScript
+                inlineScript: |
+                  python scripts/smoke_test.py --workspace-id "$(WORKSPACE_ID)" --repo-dir workspace
+
+            - bash: |
+                set -euo pipefail
+                TAG="${{ parameters.tagPrefix }}-$(date -u +%Y%m%d)-$(git rev-parse --short=8 HEAD)"
+                git tag "$TAG"
+                git push origin "$TAG"
+              displayName: Tag commit after success

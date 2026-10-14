@@ -1,0 +1,38 @@
+trigger: none
+pr: none
+
+parameters:
+  - name: target
+    type: string
+    values: [test, prod]
+  - name: testedTag
+    displayName: Tested tag (required for prod, e.g. tested-20261014-ab12cd34)
+    type: string
+    default: ''
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - checkout: self
+    fetchDepth: 0
+    persistCredentials: true
+  - bash: |
+      set -euo pipefail
+      git config user.name "promotion-pipeline"
+      git config user.email "promotion-pipeline@invalid"
+      git fetch origin --tags --prune
+      TARGET="${{ parameters.target }}"
+      if [ "$TARGET" = "test" ]; then
+        SRC="origin/dev"
+      else
+        TAG="${{ parameters.testedTag }}"
+        [ -n "$TAG" ] || { echo "testedTag is required for prod"; exit 1; }
+        case "$TAG" in tested-*) ;; *) echo "Not a tested- tag"; exit 1;; esac
+        git rev-parse -q --verify "refs/tags/$TAG^{commit}" >/dev/null || { echo "Tag not found"; exit 1; }
+        SRC="refs/tags/$TAG"
+      fi
+      git checkout -B "promote-$TARGET" "origin/$TARGET"
+      git merge --ff-only "$SRC"          # fails if the target has diverged
+      git push origin "HEAD:refs/heads/$TARGET"
+    displayName: Fast-forward target branch

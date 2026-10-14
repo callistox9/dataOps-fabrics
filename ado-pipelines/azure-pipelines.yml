@@ -1,15 +1,8 @@
-# Validate on PR and main, then deploy Test (auto) and Prod (approval).
-# The Dev workspace is Git-connected to main (developer side).
-
 trigger:
   branches:
-    include: [dev]
+    include: [dev, test, prod]
   paths:
-    include:
-      - workspace/*
-      - scripts/*
-      - pipelines/*
-      - requirements.txt
+    include: [workspace/*, scripts/*, pipelines/*, requirements.txt]
 
 pr:
   branches:
@@ -19,8 +12,9 @@ pool:
   vmImage: ubuntu-latest
 
 stages:
+  # Static checks run once, on PRs into dev and on pushes to dev.
   - stage: Validate
-    displayName: Validate
+    condition: or(eq(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.SourceBranch'], 'refs/heads/dev'))
     jobs:
       - job: validate
         steps:
@@ -37,29 +31,29 @@ stages:
             displayName: Repo policy checks
 
   - stage: Deploy_Test
-    displayName: Deploy to Test
-    dependsOn: Validate
-    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+    dependsOn: []
+    condition: eq(variables['Build.SourceBranch'], 'refs/heads/test')
     variables:
-      - group: fabric-test          # defines WORKSPACE_ID
+      - group: fabric-test
     jobs:
-      - template: ./templates/deploy.yml
+      - template: pipelines/templates/deploy.yml
         parameters:
           environment: TEST
           adoEnvironment: fabric-test
           serviceConnection: sc-fabric-test
-          unpublishOrphans: false
+          provenance: ancestor-of-dev
+          tagPrefix: tested
 
   - stage: Deploy_Prod
-    displayName: Deploy to Prod
-    dependsOn: Deploy_Test
-    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+    dependsOn: []
+    condition: eq(variables['Build.SourceBranch'], 'refs/heads/prod')
     variables:
-      - group: fabric-prod          # defines WORKSPACE_ID
+      - group: fabric-prod
     jobs:
-      - template: ./templates/deploy.yml
+      - template: pipelines/templates/deploy.yml
         parameters:
           environment: PROD
-          adoEnvironment: fabric-prod   # add Approvals and checks on this Environment
+          adoEnvironment: fabric-prod      # approvals live here
           serviceConnection: sc-fabric-prod
-          unpublishOrphans: false
+          provenance: tested-tag
+          tagPrefix: released
