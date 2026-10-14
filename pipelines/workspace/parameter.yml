@@ -1,0 +1,9 @@
+# Environment-specific replacements applied by fabric-cicd at deploy time.
+# Keys under replace_value must match --environment (TEST, PROD).
+# Prefer Variable libraries for new config where the item type supports them.
+find_replace:
+  - find_value: "<dev-lakehouse-id>"     # GUID as it appears in the Dev-synced item files
+    replace_value:
+      TEST: "<test-lakehouse-id>"
+      PROD: "<prod-lakehouse-id>"
+    item_type: "Notebook"

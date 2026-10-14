@@ -1,0 +1,65 @@
+# Validate on PR and main, then deploy Test (auto) and Prod (approval).
+# The Dev workspace is Git-connected to main (developer side).
+
+trigger:
+  branches:
+    include: [main]
+  paths:
+    include:
+      - workspace/*
+      - scripts/*
+      - pipelines/*
+      - requirements.txt
+
+pr:
+  branches:
+    include: [main]
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+  - stage: Validate
+    displayName: Validate
+    jobs:
+      - job: validate
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: '3.12'
+          - script: pip install -r requirements.txt ruff yamllint
+            displayName: Install dependencies
+          - script: ruff check scripts
+            displayName: Lint Python
+          - script: yamllint azure-pipelines.yml pipelines workspace/parameter.yml
+            displayName: Lint YAML
+          - script: python scripts/validate.py
+            displayName: Repo policy checks
+
+  - stage: Deploy_Test
+    displayName: Deploy to Test
+    dependsOn: Validate
+    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+    variables:
+      - group: fabric-test          # defines WORKSPACE_ID
+    jobs:
+      - template: pipelines/templates/deploy.yml
+        parameters:
+          environment: TEST
+          adoEnvironment: fabric-test
+          serviceConnection: sc-fabric-test
+          unpublishOrphans: false
+
+  - stage: Deploy_Prod
+    displayName: Deploy to Prod
+    dependsOn: Deploy_Test
+    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+    variables:
+      - group: fabric-prod          # defines WORKSPACE_ID
+    jobs:
+      - template: pipelines/templates/deploy.yml
+        parameters:
+          environment: PROD
+          adoEnvironment: fabric-prod   # add Approvals and checks on this Environment
+          serviceConnection: sc-fabric-prod
+          unpublishOrphans: false
